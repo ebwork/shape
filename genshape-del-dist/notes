@@ -1,0 +1,7 @@
+Todo
+- Distribute points in a 3d rectangle
+- Create the Delaunay tetrahedralization of these points
+- Use a distance function to classify these points as "in" or "out"
+- Remove all test from the del tet that have at least one "out" vertex
+- Export as a graphics file
+
