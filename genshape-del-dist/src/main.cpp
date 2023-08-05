@@ -21,34 +21,7 @@
 #include <igl/barycenter.h>
 #include <igl/writeOBJ.h>
 
-void makeCube( Eigen::MatrixXd& V, Eigen::MatrixXi& F )
-{
-  // Inline mesh of a cube
-  V.resize(8,3); V <<
-    0.0,0.0,0.0,
-    0.0,0.0,1.0,
-    0.0,1.0,0.0,
-    0.0,1.0,1.0,
-    1.0,0.0,0.0,
-    1.0,0.0,1.0,
-    1.0,1.0,0.0,
-    1.0,1.0,1.0;
-  F.resize(12,3); F <<
-    0,6,4,
-    0,2,6,
-    0,3,2,
-    0,1,3,
-    2,7,6,
-    2,3,7,
-    4,6,7,
-    4,7,5,
-    0,4,5,
-    0,5,1,
-    1,5,7,
-    1,7,3;
-}
-
-void makeRandPoints( Eigen::MatrixXd& V, Eigen::MatrixXi& F,
+void makeRandPoints( Eigen::MatrixXd& V, 
                      const Eigen::Vector3d& ptmin, const Eigen::Vector3d& ptmax,
 					 const int npoints )
 {
@@ -80,6 +53,7 @@ void addExteriorPoints( Eigen::MatrixXd& TV, const Eigen::Vector3d& ptmin, const
 			}
 }
 
+/*
 void convertDelTets( const Eigen::MatrixXd& TV, const Eigen::MatrixXi& TT,
                      Eigen::MatrixXd& Vtet, Eigen::MatrixXi& Ftet )
 {
@@ -98,6 +72,7 @@ void convertDelTets( const Eigen::MatrixXd& TV, const Eigen::MatrixXi& TT,
 		Ftet.row(i*4+3) << (i*4)+1, (i*4)+2, (i*4)+3;
 	}
 }
+*/
 
 // Just returns "interior" tetrahedrons
 // If the value of sdlist is <= 0, it's corresponding point is on the
@@ -211,7 +186,7 @@ void ebWriteOBJ(const std::string& fname, const Eigen::MatrixXd& Vtet, const std
 	for (auto face : faces) {
 	    myfile << "f";
 	    for (auto ipt : face) 
-		    myfile << " " << ipt;
+		    myfile << " " << ipt + 1;
 	    myfile << std::endl;
 	}
 }
@@ -248,7 +223,8 @@ int main( int argc, char *argv[] )
     Eigen::MatrixXi F;
 	const Eigen::Vector3d shapemin(-2,  2,  4);
 	const Eigen::Vector3d shapemax( 0,  4,  6);
-	makeRandPoints( V, F, shapemin, shapemax, npoints ); 
+	// makeRandPoints( V, F, shapemin, shapemax, npoints ); 
+	makeRandPoints( V, shapemin, shapemax, npoints ); 
 
     // Add explicit exterior points
 	addExteriorPoints( V, shapemin, shapemax);
@@ -272,15 +248,6 @@ int main( int argc, char *argv[] )
 	Eigen::MatrixXi TTint;
     getInteriorTets(TT, sdlist, TTint);
     std::cout << "Number of tets in TTint = " << TTint.rows() << std::endl;
-
-	// Compute barycenters
-    // Eigen::MatrixXd B;
-	// igl::barycenter(TV,TT,B);
-
-    // Create faces for all of the tetrahedrons
-    Eigen::MatrixXd Vtet;
-    Eigen::MatrixXi Ftet;
-    convertDelTets(TV, TTint, Vtet, Ftet);
     */
 
 	// Get a list of triangles representing the "boundary" of the "interior" tets
