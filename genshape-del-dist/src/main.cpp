@@ -63,24 +63,21 @@ void makeRandPoints( Eigen::MatrixXd& V, Eigen::MatrixXi& F,
 
 // Add a set of points on or outside of the bounding box,
 // with signed distanc of 1
-void addExteriorPoints( Eigen::MatrixXd& TV, std::vector<double>& sdlist,
-                     const Eigen::Vector3d& ptmin, const Eigen::Vector3d& ptmax)
+void addExteriorPoints( Eigen::MatrixXd& TV, const Eigen::Vector3d& ptmin, const Eigen::Vector3d& ptmax)
 {
 	int nptsAdd = 8;
 
     auto npts = TV.rows();
 	TV.conservativeResize(npts + nptsAdd, 3);
 	int k = 0;
+	double eps = (1e-5)*( (ptmax[0]-ptmin[0]) + (ptmax[1]-ptmin[1]) + (ptmax[2]-ptmin[2]) );
 	for (int ix=0; ix<=1; ++ix)
 		for (int iy=0; iy<=1; ++iy)
 			for (int iz=0; iz<=1; ++iz, ++k) {
-				TV(npts+k, 0) = ix*ptmin[0] + (1-ix)*ptmax[0];
-				TV(npts+k, 1) = iy*ptmin[1] + (1-iy)*ptmax[1];
-				TV(npts+k, 2) = iz*ptmin[2] + (1-iz)*ptmax[2];
+				TV(npts+k, 0) = ix*(ptmin[0]-eps) + (1-ix)*(ptmax[0]+eps);
+				TV(npts+k, 1) = iy*(ptmin[1]-eps) + (1-iy)*(ptmax[1]+eps);
+				TV(npts+k, 2) = iz*(ptmin[2]-eps) + (1-iz)*(ptmax[2]+eps);
 			}
-
-	for (auto i=0; i<nptsAdd; ++i)
-	    sdlist.push_back(1.);
 }
 
 void convertDelTets( const Eigen::MatrixXd& TV, const Eigen::MatrixXi& TT,
@@ -149,8 +146,12 @@ void getBoundary( const Eigen::MatrixXi& TT, const std::vector<double>& sdlist, 
 			    next++;
 				iext = i;
 			}
-		if (iext == 1)
-	        triBound.push_back( { TT(itet, (iext+1)%4), TT(itet, (iext+2)%4), TT(itet, (iext+3)%4) } );
+		if (next == 1) {
+			if (iext%2)
+				triBound.push_back( { TT(itet, (iext+1)%4), TT(itet, (iext+2)%4), TT(itet, (iext+3)%4) } );
+			else
+				triBound.push_back( { TT(itet, (iext+1)%4), TT(itet, (iext+3)%4), TT(itet, (iext+2)%4) } );
+		}
 	}
 
 	auto nfaces = triBound.size();
@@ -183,6 +184,20 @@ void sdist(const Eigen::MatrixXd& V, std::vector<double>& sdlist)
 	for (auto ipt=0; ipt<npoints; ++ipt) {
 		std::vector<double> p = { V(ipt, 0), V(ipt, 1), V(ipt, 2) };
 	    sdlist.push_back( sdfunc( p) );
+    }
+}
+
+// Set signed distance function to 1 for points
+// outside or on the boundary of a given box
+void sdistSetExterior(const Eigen::MatrixXd& V, std::vector<double>& sdlist,
+	const Eigen::Vector3d& ptmin, const Eigen::Vector3d& ptmax)
+{
+	int npoints = V.rows();
+	for (auto ipt=0; ipt<npoints; ++ipt) {
+		if ( !  ( ptmin[0]<V(ipt, 0) && V(ipt, 0)<ptmin[0] )
+		     && ( ptmin[1]<V(ipt, 1) && V(ipt, 1)<ptmin[1] )
+		     && ( ptmin[2]<V(ipt, 2) && V(ipt, 2)<ptmin[2] ) )
+	    sdlist[ipt] = 1.;
     }
 }
 
@@ -235,6 +250,9 @@ int main( int argc, char *argv[] )
 	const Eigen::Vector3d shapemax( 0,  4,  6);
 	makeRandPoints( V, F, shapemin, shapemax, npoints ); 
 
+    // Add explicit exterior points
+	addExteriorPoints( V, shapemin, shapemax);
+
     // Tetrahedralize the interior
 	Eigen::MatrixXd TV;
 	Eigen::MatrixXi TT;
@@ -246,8 +264,8 @@ int main( int argc, char *argv[] )
     std::vector<double> sdlist;
     sdist(TV, sdlist);
 
-    // Add explicit exterior points
-	addExteriorPoints( TV, sdlist, shapemin, shapemax);
+	// Explicitly set points outside the bounding box to be exterior
+    sdistSetExterior(TV, sdlist, shapemin, shapemax);
 
 	/*
 	// Filter out the "exterior tets"
