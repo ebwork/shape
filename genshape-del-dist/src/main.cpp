@@ -176,6 +176,36 @@ void sdistSetExterior(const Eigen::MatrixXd& V, std::vector<double>& sdlist,
     }
 }
 
+void makeShape( const Eigen::Vector3d& shapemin, const Eigen::Vector3d& shapemax, const int npoints,
+	Eigen::MatrixXd& TV, Eigen::MatrixXi& FtriBound)
+{
+	// Make set of points, but without any faces
+    Eigen::MatrixXd V;
+    Eigen::MatrixXi F;
+	// makeRandPoints( V, F, shapemin, shapemax, npoints ); 
+	makeRandPoints( V, shapemin, shapemax, npoints ); 
+
+    // Add explicit exterior points
+	addExteriorPoints( V, shapemin, shapemax);
+
+    // Tetrahedralize the interior
+	Eigen::MatrixXi TT;
+	Eigen::MatrixXi TF;
+    igl::copyleft::tetgen::tetrahedralize(V,F,"", TV,TT,TF);
+    std::cout << "Number of tets in TT = " << TT.rows() << std::endl;
+
+	// Assign distances to the points
+    std::vector<double> sdlist;
+    sdist(TV, sdlist);
+
+	// Explicitly set points outside the bounding box to be exterior
+    sdistSetExterior(TV, sdlist, shapemin, shapemax);
+
+	// Get a list of triangles representing the "boundary" of the "interior" tets
+	getBoundary( TT, sdlist, FtriBound);
+}
+
+
 // -----------------------------------------------------------------------------------
 void ebWriteObj(const std::string& fname_obj, const std::string& fname_mtllib, const std::string& usemtl,
     const Eigen::MatrixXd& Vtet, const std::vector<std::vector<int>>& faces)
@@ -229,41 +259,15 @@ int main( int argc, char *argv[] )
 	
     std::string fnameOutBase(argv[2]);
 
-	// Make set of points, but without any faces
-    Eigen::MatrixXd V;
-    Eigen::MatrixXi F;
+	Eigen::MatrixXd TV;
+	Eigen::MatrixXi FtriBound;
+
+	// Using the bounds specified by shapemin and shapmax, choose npoints within
+	// the bounds, then use a signed distance function to iedenify "interior"
+	// and "exterior" points.  Use tetrahalization to create a polyhedral shape.
 	const Eigen::Vector3d shapemin(-2,  2,  4);
 	const Eigen::Vector3d shapemax( 0,  4,  6);
-	// makeRandPoints( V, F, shapemin, shapemax, npoints ); 
-	makeRandPoints( V, shapemin, shapemax, npoints ); 
-
-    // Add explicit exterior points
-	addExteriorPoints( V, shapemin, shapemax);
-
-    // Tetrahedralize the interior
-	Eigen::MatrixXd TV;
-	Eigen::MatrixXi TT;
-	Eigen::MatrixXi TF;
-    igl::copyleft::tetgen::tetrahedralize(V,F,"", TV,TT,TF);
-    std::cout << "Number of tets in TT = " << TT.rows() << std::endl;
-
-	// Assign distances to the points
-    std::vector<double> sdlist;
-    sdist(TV, sdlist);
-
-	// Explicitly set points outside the bounding box to be exterior
-    sdistSetExterior(TV, sdlist, shapemin, shapemax);
-
-	/*
-	// Filter out the "exterior tets"
-	Eigen::MatrixXi TTint;
-    getInteriorTets(TT, sdlist, TTint);
-    std::cout << "Number of tets in TTint = " << TTint.rows() << std::endl;
-    */
-
-	// Get a list of triangles representing the "boundary" of the "interior" tets
-	Eigen::MatrixXi FtriBound;
-	getBoundary( TT, sdlist, FtriBound);
+    makeShape( shapemin, shapemax, npoints, TV, FtriBound);
 
     // Convert triangle matrix to general face form
 	std::vector<std::vector<int>> boundary;
