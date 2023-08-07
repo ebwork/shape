@@ -12,14 +12,14 @@
 
 #include <iostream>
 #include <fstream>
-#include <sstream>
+// #include <sstream>
 
 #include <Eigen/Dense>
 
 #include <igl/opengl/glfw/Viewer.h>
 #include <igl/copyleft/tetgen/tetrahedralize.h>
-#include <igl/barycenter.h>
-#include <igl/writeOBJ.h>
+// #include <igl/barycenter.h>
+// #include <igl/writeOBJ.h>
 
 void makeRandPoints( Eigen::MatrixXd& V, 
                      const Eigen::Vector3d& ptmin, const Eigen::Vector3d& ptmax,
@@ -177,10 +177,15 @@ void sdistSetExterior(const Eigen::MatrixXd& V, std::vector<double>& sdlist,
 }
 
 // -----------------------------------------------------------------------------------
-void ebWriteOBJ(const std::string& fname, const Eigen::MatrixXd& Vtet, const std::vector<std::vector<int>>& faces)
+void ebWriteObj(const std::string& fname_obj, const std::string& fname_mtllib, const std::string& usemtl,
+    const Eigen::MatrixXd& Vtet, const std::vector<std::vector<int>>& faces)
 {
 	std::ofstream myfile;
-	myfile.open (fname);
+	myfile.open (fname_obj);
+	if (!fname_mtllib.empty() && !usemtl.empty()) {
+	    myfile << "mtllib " << fname_mtllib << std::endl;
+	    myfile << "usemtl " << usemtl << std::endl;
+	}
 	for (auto ipt=0; ipt<Vtet.rows(); ++ipt)
 	    myfile << "v " << Vtet(ipt, 0) << " " << Vtet(ipt, 1) << " " << Vtet(ipt, 2) << std::endl;
 	for (auto face : faces) {
@@ -191,10 +196,16 @@ void ebWriteOBJ(const std::string& fname, const Eigen::MatrixXd& Vtet, const std
 	}
 }
 
+void ebWriteObj(const std::string& fnameBase, const int objIndex,
+    const Eigen::MatrixXd& Vtet, const std::vector<std::vector<int>>& faces)
+{
+    ebWriteObj(fnameBase+".obj", fnameBase+".mtl", fnameBase+"_"+std::to_string(objIndex), Vtet, faces);
+}
+
 // -----------------------------------------------------------------------------------
 void usage(const std::string& cmd, const std::string& mess)
 {
-    std::cout << "usage: " << cmd << "npoints fname.obj" << std::endl;
+    std::cout << "usage: " << cmd << "npoints fname_out_base" << std::endl;
     std::cout << "exit/error message: " << mess << std::endl;
 	exit(0);
 }
@@ -216,7 +227,7 @@ int main( int argc, char *argv[] )
 	    usage(cmd, "invalid \"npoints\"");
 	}
 	
-    std::string fnameOutObj(argv[2]);
+    std::string fnameOutBase(argv[2]);
 
 	// Make set of points, but without any faces
     Eigen::MatrixXd V;
@@ -262,7 +273,7 @@ int main( int argc, char *argv[] )
 	std::cout << "boundary.size() = " << boundary.size() << std::endl;
 
 	// Write an obj file using my own routine
-    ebWriteOBJ(fnameOutObj, TV, boundary);
+    ebWriteObj(fnameOutBase, 2, TV, boundary);
 
 	// Write an obj file
     // igl::writeOBJ(fnameOutObj, Vtet, Ftet);
